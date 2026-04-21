@@ -1,0 +1,367 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>NexEra — AI 3D Asset Pipeline</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --black: #080c0f; --deep: #0d1318; --panel: #111820;
+      --border: #1e2d3d; --border-bright: #2e4a64;
+      --accent: #00e5ff; --accent2: #ff6b35; --accent3: #a8ff3e;
+      --text: #c8dae8; --text-dim: #5a7a8a; --text-bright: #eef6ff;
+      --mono: 'Space Mono', monospace; --display: 'Syne', sans-serif;
+    }
+    html, body { height: 100%; background: var(--black); color: var(--text); font-family: var(--mono); font-size: 13px; overflow: hidden; }
+    body::before {
+      content: ''; position: fixed; inset: 0;
+      background-image: linear-gradient(rgba(0,229,255,0.04) 1px, transparent 1px), linear-gradient(90deg, rgba(0,229,255,0.04) 1px, transparent 1px);
+      background-size: 40px 40px; pointer-events: none; z-index: 0;
+    }
+    .app { position: relative; z-index: 1; display: grid; grid-template-columns: 340px 1fr; grid-template-rows: 56px 1fr; height: 100vh; }
+    header { grid-column: 1 / -1; display: flex; align-items: center; gap: 16px; padding: 0 20px; border-bottom: 1px solid var(--border); background: rgba(8,12,15,0.9); }
+    .logo { font-family: var(--display); font-weight: 800; font-size: 18px; color: var(--text-bright); }
+    .logo span { color: var(--accent); }
+    .header-tag { font-size: 10px; letter-spacing: 2px; text-transform: uppercase; color: var(--text-dim); border: 1px solid var(--border); padding: 3px 8px; }
+    .header-status { margin-left: auto; display: flex; align-items: center; gap: 8px; font-size: 11px; color: var(--text-dim); }
+    .status-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--accent3); animation: pulse 2s ease-in-out infinite; }
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.3} }
+    .sidebar { border-right: 1px solid var(--border); background: rgba(13,19,24,0.95); display: flex; flex-direction: column; overflow: hidden; }
+    .sidebar-section { padding: 16px; border-bottom: 1px solid var(--border); }
+    .section-label { font-size: 10px; letter-spacing: 2px; text-transform: uppercase; color: var(--text-dim); margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
+    .section-label::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+    .mode-tabs { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; margin-bottom: 14px; }
+    .mode-tab { padding: 8px; text-align: center; font-family: var(--mono); font-size: 11px; letter-spacing: 1px; text-transform: uppercase; background: transparent; border: 1px solid var(--border); color: var(--text-dim); cursor: pointer; transition: all 0.15s; }
+    .mode-tab.active { background: rgba(0,229,255,0.08); border-color: var(--accent); color: var(--accent); }
+    textarea { width: 100%; height: 80px; background: rgba(0,0,0,0.4); border: 1px solid var(--border); color: var(--text-bright); font-family: var(--mono); font-size: 12px; padding: 10px; resize: none; outline: none; transition: border-color 0.15s; }
+    textarea:focus { border-color: var(--accent); }
+    textarea::placeholder { color: var(--text-dim); }
+    .upload-zone { border: 1px dashed var(--border); padding: 24px 16px; text-align: center; cursor: pointer; transition: all 0.15s; display: none; }
+    .upload-zone.visible { display: block; }
+    .upload-zone:hover { border-color: var(--accent); background: rgba(0,229,255,0.04); }
+    .upload-icon { font-size: 24px; margin-bottom: 8px; opacity: 0.5; }
+    .upload-label { font-size: 11px; color: var(--text-dim); line-height: 1.5; }
+    .upload-preview { width: 100%; max-height: 120px; object-fit: cover; border: 1px solid var(--border); display: none; margin-top: 8px; }
+    .btn-analyze { width: 100%; padding: 12px; margin-top: 12px; background: var(--accent); color: var(--black); border: none; font-family: var(--mono); font-size: 12px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; cursor: pointer; transition: all 0.15s; }
+    .btn-analyze:disabled { background: var(--border); color: var(--text-dim); cursor: not-allowed; }
+    .quick-prompts { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+    .chip { padding: 4px 10px; border: 1px solid var(--border); font-size: 10px; color: var(--text-dim); cursor: pointer; transition: all 0.1s; }
+    .chip:hover { border-color: var(--accent2); color: var(--accent2); }
+    .result-panel { flex: 1; overflow-y: auto; padding: 16px; display: none; }
+    .result-panel.visible { display: block; }
+    .result-panel::-webkit-scrollbar { width: 4px; }
+    .result-panel::-webkit-scrollbar-thumb { background: var(--border); }
+    .result-title { font-family: var(--display); font-size: 16px; font-weight: 700; color: var(--text-bright); margin-bottom: 4px; }
+    .result-category { font-size: 10px; letter-spacing: 2px; text-transform: uppercase; color: var(--accent2); margin-bottom: 12px; }
+    .result-summary { font-size: 12px; line-height: 1.7; color: var(--text); margin-bottom: 16px; padding: 12px; border-left: 2px solid var(--accent); background: rgba(0,229,255,0.03); }
+    .facts-label { font-size: 10px; letter-spacing: 1.5px; text-transform: uppercase; color: var(--text-dim); margin-bottom: 8px; }
+    .fact-item { display: flex; gap: 8px; font-size: 11px; line-height: 1.6; color: var(--text); margin-bottom: 6px; }
+    .fact-item::before { content: '▸'; color: var(--accent3); flex-shrink: 0; }
+    .training-context { margin-top: 14px; padding: 10px; border: 1px solid var(--border); font-size: 11px; color: var(--text-dim); line-height: 1.6; }
+    .training-context strong { color: var(--accent2); font-size: 9px; letter-spacing: 1.5px; text-transform: uppercase; display: block; margin-bottom: 4px; }
+    .viewer-pane { position: relative; background: var(--deep); overflow: hidden; }
+    .viewer-overlay { position: absolute; inset: 0; pointer-events: none; z-index: 5; }
+    .corner-mark { position: absolute; width: 16px; height: 16px; border-color: var(--border-bright); border-style: solid; border-width: 0; opacity: 0.6; }
+    .corner-mark.tl { top: 16px; left: 16px; border-top-width: 1.5px; border-left-width: 1.5px; }
+    .corner-mark.tr { top: 16px; right: 16px; border-top-width: 1.5px; border-right-width: 1.5px; }
+    .corner-mark.bl { bottom: 16px; left: 16px; border-bottom-width: 1.5px; border-left-width: 1.5px; }
+    .corner-mark.br { bottom: 16px; right: 16px; border-bottom-width: 1.5px; border-right-width: 1.5px; }
+    .viewer-label { position: absolute; top: 20px; left: 50%; transform: translateX(-50%); font-size: 10px; letter-spacing: 2px; text-transform: uppercase; color: var(--text-dim); z-index: 5; pointer-events: none; }
+    .viewer-type-badge { position: absolute; bottom: 60px; left: 50%; transform: translateX(-50%); font-size: 10px; letter-spacing: 1px; text-transform: uppercase; color: var(--accent); border: 1px solid var(--accent); padding: 3px 10px; z-index: 5; pointer-events: none; display: none; }
+    .model-info-hud { position: absolute; top: 20px; right: 24px; font-size: 10px; color: var(--text-dim); text-align: right; line-height: 1.8; z-index: 5; pointer-events: none; display: none; }
+    .viewer-controls { position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); display: none; gap: 8px; z-index: 10; }
+    .ctrl-btn { padding: 6px 14px; font-family: var(--mono); font-size: 10px; letter-spacing: 1px; text-transform: uppercase; background: rgba(13,19,24,0.9); border: 1px solid var(--border); color: var(--text-dim); cursor: pointer; transition: all 0.15s; }
+    .ctrl-btn:hover { border-color: var(--accent); color: var(--accent); }
+    .loading-overlay { position: absolute; inset: 0; background: rgba(8,12,15,0.85); flex-direction: column; align-items: center; justify-content: center; z-index: 20; display: none; }
+    .loading-overlay.visible { display: flex; }
+    .loader-ring { width: 48px; height: 48px; border: 2px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.8s linear infinite; margin-bottom: 16px; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .loader-text { font-size: 11px; letter-spacing: 2px; text-transform: uppercase; color: var(--accent); }
+    .loader-sub { font-size: 10px; color: var(--text-dim); margin-top: 6px; }
+    .empty-state { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; pointer-events: none; }
+    .empty-glyph { font-size: 64px; opacity: 0.06; margin-bottom: 16px; font-family: var(--display); font-weight: 800; }
+    .empty-text { font-size: 11px; color: var(--text-dim); letter-spacing: 1px; text-align: center; }
+    .error-bar { padding: 10px 12px; background: rgba(255,60,60,0.1); border: 1px solid rgba(255,60,60,0.3); color: #ff6b6b; font-size: 11px; margin-top: 10px; display: none; }
+    .error-bar.visible { display: block; }
+    #viewer-canvas { width: 100%; height: 100%; display: block; }
+    #sketchfab-frame, #model-viewer-el { position: absolute; inset: 0; width: 100%; height: 100%; border: none; z-index: 2; }
+  </style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <div class="logo">Nex<span>Era</span></div>
+    <div class="header-tag">3D AI Pipeline</div>
+    <div class="header-status">
+      <div class="status-dot"></div>
+      <span>AI ENGINE ONLINE</span>
+    </div>
+  </header>
+
+  <aside class="sidebar">
+    <div class="sidebar-section">
+      <div class="section-label">Input Mode</div>
+      <div class="mode-tabs">
+        <button class="mode-tab active" id="tab-text" onclick="switchMode('text')">Text</button>
+        <button class="mode-tab" id="tab-image" onclick="switchMode('image')">Image</button>
+      </div>
+      <div id="text-mode">
+        <textarea id="text-input" placeholder="Describe any object... e.g. 'basketball', 'fire extinguisher', 'vintage car'" maxlength="300"></textarea>
+        <div class="quick-prompts">
+          <div class="chip" onclick="setPrompt('basketball')">Basketball</div>
+          <div class="chip" onclick="setPrompt('hard hat')">Hard hat</div>
+          <div class="chip" onclick="setPrompt('fire extinguisher')">Extinguisher</div>
+          <div class="chip" onclick="setPrompt('laptop computer')">Laptop</div>
+          <div class="chip" onclick="setPrompt('vintage car')">Vintage car</div>
+          <div class="chip" onclick="setPrompt('office chair')">Chair</div>
+          <div class="chip" onclick="setPrompt('astronaut')">Astronaut</div>
+          <div class="chip" onclick="setPrompt('sword')">Sword</div>
+        </div>
+      </div>
+      <div id="image-mode" style="display:none">
+        <div class="upload-zone visible" id="upload-zone"
+          onclick="document.getElementById('file-input').click()"
+          ondragover="handleDragOver(event)" ondragleave="handleDragLeave(event)" ondrop="handleDrop(event)">
+          <div class="upload-icon">⬆</div>
+          <div class="upload-label">Drop an image here<br/>or click to browse<br/><br/>JPG, PNG, WEBP</div>
+        </div>
+        <img id="upload-preview" class="upload-preview" alt="preview" />
+        <input type="file" id="file-input" accept="image/*" style="display:none" onchange="handleFileSelect(event)" />
+      </div>
+      <div id="error-bar" class="error-bar"></div>
+      <button class="btn-analyze" id="btn-analyze" onclick="analyze()">Analyze + Generate</button>
+    </div>
+
+    <div class="result-panel" id="result-panel">
+      <div class="result-title" id="result-name">—</div>
+      <div class="result-category" id="result-category">—</div>
+      <div class="result-summary" id="result-summary">—</div>
+      <div class="facts-label">Key Facts</div>
+      <div id="result-facts"></div>
+      <div class="training-context">
+        <strong>Training Context</strong>
+        <span id="result-training">—</span>
+      </div>
+    </div>
+  </aside>
+
+  <div class="viewer-pane" id="viewer-pane">
+    <canvas id="viewer-canvas"></canvas>
+    <div class="viewer-overlay">
+      <div class="corner-mark tl"></div>
+      <div class="corner-mark tr"></div>
+      <div class="corner-mark bl"></div>
+      <div class="corner-mark br"></div>
+      <div class="viewer-label">3D VIEWPORT</div>
+      <div class="model-info-hud" id="model-hud">
+        <div id="hud-name">—</div>
+        <div style="color:var(--accent);margin-top:2px" id="hud-format">—</div>
+        <div style="margin-top:2px" id="hud-status">LOADING</div>
+      </div>
+      <div class="viewer-type-badge" id="viewer-type-badge">SKETCHFAB</div>
+    </div>
+    <div class="viewer-controls" id="viewer-controls">
+      <button class="ctrl-btn" onclick="resetViewer()">Reset View</button>
+      <button class="ctrl-btn" onclick="toggleAutoRotate()">Auto-Rotate</button>
+    </div>
+    <div class="empty-state" id="empty-state">
+      <div class="empty-glyph">3D</div>
+      <div class="empty-text">Describe or upload an object<br/>to load a 3D model</div>
+    </div>
+    <div class="loading-overlay" id="loading-overlay">
+      <div class="loader-ring"></div>
+      <div class="loader-text">Processing</div>
+      <div class="loader-sub" id="loader-sub">Analyzing input...</div>
+    </div>
+  </div>
+</div>
+
+<script type="module" src="https://unpkg.com/@google/model-viewer/dist/model-viewer.min.js"></script>
+
+<script>
+let currentMode = 'text';
+let selectedFile = null;
+let currentViewerType = null;
+
+function switchMode(mode) {
+  currentMode = mode;
+  document.getElementById('tab-text').classList.toggle('active', mode === 'text');
+  document.getElementById('tab-image').classList.toggle('active', mode === 'image');
+  document.getElementById('text-mode').style.display = mode === 'text' ? 'block' : 'none';
+  document.getElementById('image-mode').style.display = mode === 'image' ? 'block' : 'none';
+  clearError();
+}
+
+function setPrompt(text) { document.getElementById('text-input').value = text; }
+function clearError() { const b = document.getElementById('error-bar'); b.textContent = ''; b.classList.remove('visible'); }
+function showError(msg) { const b = document.getElementById('error-bar'); b.textContent = msg; b.classList.add('visible'); }
+
+function setLoading(loading, sub = 'Analyzing input...') {
+  document.getElementById('loader-sub').textContent = sub;
+  document.getElementById('loading-overlay').classList.toggle('visible', loading);
+  document.getElementById('btn-analyze').disabled = loading;
+}
+
+function handleDragOver(e) { e.preventDefault(); document.getElementById('upload-zone').style.borderColor = 'var(--accent)'; }
+function handleDragLeave() { document.getElementById('upload-zone').style.borderColor = ''; }
+function handleDrop(e) { e.preventDefault(); handleDragLeave(); if (e.dataTransfer.files[0]) setFile(e.dataTransfer.files[0]); }
+function handleFileSelect(e) { if (e.target.files[0]) setFile(e.target.files[0]); }
+
+function setFile(file) {
+  selectedFile = file;
+  const reader = new FileReader();
+  const preview = document.getElementById('upload-preview');
+  reader.onload = ev => { preview.src = ev.target.result; preview.style.display = 'block'; };
+  reader.readAsDataURL(file);
+}
+
+// ── MAIN ANALYZE ──────────────────────────────
+async function analyze() {
+  clearError();
+  setLoading(true, 'Sending to AI...');
+
+  try {
+    let result;
+
+    if (currentMode === 'text') {
+      const desc = document.getElementById('text-input').value.trim();
+      if (!desc) { showError('Please enter a description.'); setLoading(false); return; }
+
+      const fd = new FormData();
+      fd.append('description', desc);
+      const res = await fetch('/api/analyze/text', { method: 'POST', body: fd });
+      if (!res.ok) { const e = await res.json(); throw new Error(e.detail || 'Server error'); }
+      result = await res.json();
+
+    } else {
+      if (!selectedFile) { showError('Please upload an image.'); setLoading(false); return; }
+      const fd = new FormData();
+      fd.append('file', selectedFile);
+      setLoading(true, 'Running vision analysis...');
+      const res = await fetch('/api/analyze/image', { method: 'POST', body: fd });
+      if (!res.ok) { const e = await res.json(); throw new Error(e.detail || 'Server error'); }
+      result = await res.json();
+    }
+
+    console.log('API result:', result);
+    setLoading(true, 'Loading 3D model...');
+    await displayResult(result);
+
+  } catch(e) {
+    showError(e.message || 'Something went wrong. Try again.');
+  } finally {
+    setLoading(false);
+  }
+}
+
+// ── DISPLAY RESULT ────────────────────────────
+async function displayResult(data) {
+  document.getElementById('result-name').textContent = data.object_name;
+  document.getElementById('result-category').textContent = (data.category || 'general').replace(/_/g, ' ').toUpperCase();
+  document.getElementById('result-summary').textContent = data.educational_summary;
+  document.getElementById('result-training').textContent = data.training_context;
+  document.getElementById('result-facts').innerHTML = (data.key_facts || []).map(f => `<div class="fact-item">${f}</div>`).join('');
+  document.getElementById('result-panel').classList.add('visible');
+
+  document.getElementById('hud-name').textContent = data.object_name.toUpperCase();
+  document.getElementById('hud-format').textContent = data.viewer_type === 'sketchfab' ? 'SKETCHFAB' : 'GLB/GLTF';
+  document.getElementById('hud-status').textContent = 'LOADING';
+  document.getElementById('model-hud').style.display = 'block';
+
+  currentViewerType = data.viewer_type;
+
+  if (data.viewer_type === 'sketchfab') {
+    loadSketchfab(data.model_url);
+  } else {
+    loadGLTF(data.model_url, data.fallback_url);
+  }
+}
+
+// ── SKETCHFAB IFRAME LOADER ───────────────────
+function loadSketchfab(url) {
+  clearViewer();
+
+  const badge = document.getElementById('viewer-type-badge');
+  badge.textContent = 'SKETCHFAB';
+  badge.style.display = 'block';
+
+  const iframe = document.createElement('iframe');
+  iframe.id = 'sketchfab-frame';
+  iframe.src = url;
+  iframe.setAttribute('allowfullscreen', '');
+  iframe.setAttribute('allow', 'autoplay; fullscreen; xr-spatial-tracking');
+  iframe.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;border:none;z-index:2;';
+
+  iframe.onload = () => {
+    document.getElementById('hud-status').textContent = 'LOADED';
+    document.getElementById('empty-state').style.display = 'none';
+    document.getElementById('viewer-controls').style.display = 'flex';
+  };
+
+  document.getElementById('viewer-pane').appendChild(iframe);
+  console.log('Sketchfab iframe loaded:', url);
+}
+
+// ── GLB/GLTF MODEL-VIEWER LOADER ─────────────
+function loadGLTF(url, fallback) {
+  clearViewer();
+
+  const badge = document.getElementById('viewer-type-badge');
+  badge.textContent = 'GLB/GLTF';
+  badge.style.display = 'block';
+
+  const mv = document.createElement('model-viewer');
+  mv.id = 'model-viewer-el';
+  mv.setAttribute('src', url);
+  mv.setAttribute('alt', '3D model');
+  mv.setAttribute('camera-controls', '');
+  mv.setAttribute('auto-rotate', '');
+  mv.setAttribute('shadow-intensity', '1');
+  mv.setAttribute('exposure', '1.0');
+  mv.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;z-index:2;background:transparent;--poster-color:transparent;';
+
+  mv.addEventListener('load', () => {
+    document.getElementById('hud-status').textContent = 'LOADED';
+    document.getElementById('empty-state').style.display = 'none';
+    document.getElementById('viewer-controls').style.display = 'flex';
+  });
+
+  mv.addEventListener('error', () => {
+    if (fallback && mv.getAttribute('src') !== fallback) {
+      mv.setAttribute('src', fallback);
+      document.getElementById('hud-status').textContent = 'FALLBACK';
+    }
+  });
+
+  document.getElementById('viewer-pane').appendChild(mv);
+  console.log('GLB loaded:', url);
+}
+
+// ── CLEAR VIEWER ──────────────────────────────
+function clearViewer() {
+  const old1 = document.getElementById('sketchfab-frame');
+  const old2 = document.getElementById('model-viewer-el');
+  if (old1) old1.remove();
+  if (old2) old2.remove();
+  document.getElementById('viewer-controls').style.display = 'none';
+  document.getElementById('viewer-type-badge').style.display = 'none';
+}
+
+function resetViewer() {
+  const mv = document.getElementById('model-viewer-el');
+  if (mv) { mv.removeAttribute('camera-orbit'); }
+}
+
+function toggleAutoRotate() {
+  const mv = document.getElementById('model-viewer-el');
+  if (mv) {
+    if (mv.hasAttribute('auto-rotate')) mv.removeAttribute('auto-rotate');
+    else mv.setAttribute('auto-rotate', '');
+  }
+}
+</script>
+</body>
+</html>
